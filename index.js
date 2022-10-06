@@ -1,16 +1,29 @@
-
-const { ApolloServer, gql } = require("apollo-server");
+const {ApolloServer, gql} = require("apollo-server");
 const db = require('./db');
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = gql`
-
     enum Genre {
         Pop,
         Rock,
         Alternative
         HipHop,
         Folk
+    }
+    
+    input inputAlbum {
+        title: String
+        artist: inputArtist
+        year: Int
+        tracks: [inputTrack!]
+        genre: Genre
+    }
+    
+    input inputArtist {
+        name: String!
+    }
+    input inputTrack {
+        title: String!
     }
 
     type Track {
@@ -25,13 +38,13 @@ const typeDefs = gql`
     type Album {
         title: String!
         artist: Artist!
+        year: Int!
         tracks: [Track!]!
         genre: Genre!
     }
 
     type Query {
-        albums(genre: Genre,name:String): [Album!]!
-        album(title: String!): Album
+        albums(payload:inputAlbum): [Album!]!
     }
 `;
 
@@ -39,33 +52,20 @@ const typeDefs = gql`
 const resolvers = {
     Query: {
         albums: (root, args, context) => {
-            console.log(args);
-            const isFilteringByGenre = args && args.genre;
-
-            if (isFilteringByGenre) {
-                return context.db.getAlbumsByGenre(args.genre)
-            }
-
-            return context.db.getAllAlbums();
+            console.log(args.payload);
+            const dynamicFilter = !!args && Object.keys(args.payload) ? !!args.payload : false;
+            return dynamicFilter ? context.db.getAlbumsByDynamicFilter(args.payload) : context.db.getAllAlbums();
         },
-        album: (root, args, context) => {
-            const albumTitle = args && args.title;
 
-            try {
-                return context.db.getAlbumByTitle(albumTitle);
-            } catch (err) {
-                return null;
-            }
-        }
     }
 };
 
 const server = new ApolloServer({
     typeDefs,
     resolvers,
-    context: ({ db })
+    context: ({db})
 });
 
-server.listen().then(({ url }) => {
+server.listen().then(({url}) => {
     console.log(`🚀 Server ready at ${url}`);
 });

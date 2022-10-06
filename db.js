@@ -1,16 +1,9 @@
-
 const fs = require('fs');
 const path = require('path');
 
-const json =  fs.readFileSync(path.join(__dirname, './data.json'), );
+const json = fs.readFileSync(path.join(__dirname, './data.json'),);
 let data = JSON.parse(json);
 
-/**
- * Use the data mapper pattern to encapsulate data transformations
- *
- * https://en.wikipedia.org/wiki/Data_mapper_pattern
- * https://khalilstemmler.com/articles/typescript-domain-driven-design/repository-dto-mapper/#Data-Mappers
- */
 
 const TracksMap = {
     toGraphQL: (tracks) => {
@@ -28,6 +21,22 @@ const AlbumMap = {
     })
 }
 
+const match = (obj, key, query) => {
+    switch (typeof query) {
+        case 'string':
+            return obj[key] === query;
+        case 'object':
+            if (query instanceof Array) {
+                return query.includes(obj[key]);
+            }else {
+                return Object.keys(query).every((childkey) => match(obj[key], childkey, query[childkey]));
+            }
+        default:
+            return true;
+
+    }
+}
+
 const db = {
     getAllAlbums: () => {
         return data.albums.map((a) => AlbumMap.toGraphQL(a))
@@ -39,8 +48,8 @@ const db = {
         }
         return AlbumMap.toGraphQL(album);
     },
-    getAlbumsByGenre: (albumGenre) => {
-        const albums = data.albums.filter((a) => a.genre === albumGenre);
+    getAlbumsByDynamicFilter: (payload) => {
+        const albums = data.albums.filter((a) => Object.keys(payload).every(key => match(a, key, payload[key])));
         return albums.map((a) => AlbumMap.toGraphQL(a));
     }
 }
